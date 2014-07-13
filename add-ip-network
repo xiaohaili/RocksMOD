@@ -1,0 +1,47 @@
+#!/bin/bash
+
+###
+# add-ip-network : add an IP network (ie. 10G) for local message passing
+#
+# Rev. 1  2014/7/11  hl
+# prototype
+###
+
+[ -f common ] && . common || {
+	echo "Config file 'common' not found."
+	exit 1
+}
+
+check_root
+
+# Set new IP network, frontend , compute nodes
+
+added_netname="teng"
+added_subnet="192.168.11.0"
+added_netmask="255.255.255.0"
+
+frontend_added_iface="p3p2"
+frontend_added_ip="192.168.11.8"
+
+cn_added_iface="p3p2"
+
+# The rest shouldn't need to be changed
+
+${DEBUGCMD} rocks add network ${added_netname} subnet="${added_subnet}" netmask="${added_netmask}"
+${DEBUGCMD}
+
+${DEBUGCMD} rocks set host interface ip ${frontend} iface=${frontend_added_iface} ip=${frontend_added_ip}
+${DEBUGCMD} rocks set host interface subnet ${frontend} iface=${frontend_added_iface} subnet=${added_netname}
+${DEBUGCMD}
+
+for idx in `seq ${cn_start} ${cn_end}`; do
+	node=$(printf "${cn_prefix}%02d" $idx)
+	${DEBUGCMD} rocks set host interface ip ${node} iface=${cn_added_iface} ip=${added_subnet/%.0/.$idx}
+	${DEBUGCMD} rocks set host interface subnet ${node} iface=${cn_added_iface} subnet=${added_netname}
+	${DEBUGCMD}
+done
+
+${DEBUGCMD} echo "Syncing config and all hosts..."
+${DEBUGCMD} rocks sync config
+${DEBUGCMD} rocks sync host network ${frontend}
+${DEBUGCMD} rocks sync host network compute

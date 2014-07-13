@@ -1,0 +1,36 @@
+#!/bin/bash
+
+###
+# insert-compute-node : add an compute node to the cluster
+#
+# Rev. 1  2014/7/11  hl
+# prototype
+###
+
+[ -f common ] && . common || {
+	echo "Config file 'common' not found."
+	exit 1
+}
+
+check_root
+
+# The rest shouldn't need to be changed
+
+cat << __EOF__
+Example: reset and PXE boot a compute node.
+
+IPMI_PASSWORD="xxx"
+NODE_IP="192.168.x.x"
+ipmitool -I lanplus -H '$NODE_IP' -U root -E chassis bootdev pxe
+ipmitool -I lanplus -H '$NODE_IP' -U root -E chassis power reset
+
+__EOF__
+
+for idx in `seq ${cn_start} ${cn_end}`; do
+	node=$(printf "${cn_prefix}%02d" $idx)
+	
+	echo "After insert-ethers starts, power on compute node $idx [$node]"
+	echo "Press RETURN to continue, Ctrl+C to exit." &&  read
+	insert-ethers --hostname ${node} --ipaddr ${private_subnet/%.0/.$idx} --rack 0 --rank $idx
+	echo
+done

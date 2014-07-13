@@ -1,0 +1,22 @@
+#!/bin/bash
+
+###
+# firewall : open access to http/https and other services
+#
+# Rev. 1  2014/7/11  hl
+# prototype
+###
+
+[ -f common ] && . common || {
+	echo "Config file 'common' not found."
+	exit 1
+}
+
+check_root
+
+# firewall: open access to http/https
+# rocks add firewall host=localhost network=public protocol=tcp service=www chain=INPUT action=ACCEPT flags="-m state --state NEW" rulename=A40-WWW-PUBLIC-NEW
+rocks add firewall host=localhost network=public protocol=tcp service=https chain=INPUT action=ACCEPT flags="-m state --state NEW" rulename=A40-HTTPS-PUBLIC-NEW
+
+rocks sync host firewall localhost
+rocks report host firewall localhost

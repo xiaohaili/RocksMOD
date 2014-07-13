@@ -1,0 +1,27 @@
+###
+# common : common config and functions
+#
+# Rev. 1  2014/7/11  hl
+# prototype
+###
+
+# DEBUGCMD=""
+DEBUGCMD="echo"
+
+# frontend name
+frontend=$(hostname -s)
+
+# compute node naming
+cn_prefix="cn"
+cn_start=9
+cn_end=14
+
+# private network
+private_subnet="10.1.1.0"
+
+function check_root() {
+	[ $(id -u) -ne 0 ] && {
+		echo "Only root can run."
+		exit 2
+	}
+}

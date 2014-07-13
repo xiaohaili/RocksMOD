@@ -1,0 +1,58 @@
+#!/bin/bash
+
+###
+# add-outside-nas : add a outside NAS shared storage
+#
+# Rev. 1  2014/7/11  hl
+# prototype
+###
+
+[ -f common ] && . common || {
+        echo "Config file 'common' not found."
+        exit 1
+}
+
+check_root
+
+# Set new IP network, frontend , compute nodes
+
+nas_server="192.168.11.62"
+nas_export="/ISUM/${frontend}"
+
+nas_export_home="${nas_export}/home"
+nas_export_share="${nas_export}/&"
+
+# The rest shouldn't need to be changed
+
+# Sync files from original export dir to NAS"
+mount_dir="/media/tmp"
+mkdir -p "${mount_dir}"
+mount -t nfs -o vers=3 ${nas_server}:"${nas_export}" "${mount_dir}"
+rsync -avP /export/* "${mount_dir}"
+umount "${mount_dir}"
+rmdir "${mount_dir}"
+
+# Stop nfs server and original export
+/etc/init.d/nfs stop
+chkconfig nfs off
+rm -f /export
+
+# We don't need /state/partition1/
+umount /state/partition1/
+sed -i "/\/state\/partition1/ s/^[^#]/#&/" /etc/fstab
+
+# Setup new export to NAS shared storage
+mkdir /export
+echo "${nas_server}:${nas_export}   /export   nfs   defaults,vers=3 0 0" >> /etc/fstab
+mount /export
+
+# automount: $HOME, /share
+rocks set attr Info_HomeDirSrv "${nas_server}"
+rocks set attr Info_HomeDirLoc "${nas_export_home}"
+rocks sync config
+
+sed -i "/^apps[ \t]/d" /etc/auto.share
+echo "apps   -nfsvers=3   ${nas_server}:${nas_export_share}" >> /etc/auto.share
+/etc/init.d/autofs restart
+
+make -C /var/411/

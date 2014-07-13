@@ -1,0 +1,41 @@
+#!/bin/bash
+
+###
+# reset-cn-partition : reset compute nodes partition,
+#                      pxe boot compute nodes to finish
+#
+# Rev. 1  2014/7/11  hl
+# prototype
+###
+
+[ -f common ] && . common || {
+	echo "Config file 'common' not found."
+	exit 1
+}
+
+check_root
+
+# clean compute nodes partition info
+for idx in `seq ${cn_start} ${cn_end}`; do
+	node=$(printf "${cn_prefix}%02d" $idx)
+	rocks remove host partition ${node}
+
+	nuke_exec="`pwd`/nukeit.sh"
+	ssh ${node} \"${nuke_exec}\"
+done
+
+# setup new partition
+cd /export/rocks/install/site-profiles/*/nodes/
+cp skeleton.xml replace-partition.xml
+
+sed -i "/partitioning commands go here/ s/$/\n \
+echo \"clearpart --all --initlabel --drives=sda\n \
+part    \/      --size 16000 --ondisk sda\n \
+part    \/var   --size 4000 --ondisk sda\n \
+part    swap    --size 56000 --ondisk sda\n \
+part    \/tmp   --size 1 --grow --ondisk sda\" > \/tmp\/user_partition_info \
+/" replace-partition.xml
+
+cd /export/rocks/install
+rocks create distro
+

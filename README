@@ -1,0 +1,22 @@
+0. clean partition info from all compute nodes, if needed
+# reset-cn-partition
+
+1. install frontend node
+
+2. install compute nodes, one by one
+# reset-cn-partition
+# insert-compute-node
+
+3. open access to http/https (ganglia etc.)
+# firewall
+
+4. add extra IP network for MPI
+# add-ip-network
+
+5. add outside NAS shared storage
+# add-outside-nas
+
+6. add users
+# adduser haili
+# passwd haili
+# rocks sync users

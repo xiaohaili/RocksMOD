@@ -21,8 +21,8 @@ Example: reset and PXE boot a compute node.
 
 IPMI_PASSWORD="xxx"
 NODE_IP="192.168.x.x"
-ipmitool -I lanplus -H '$NODE_IP' -U root -E chassis bootdev pxe
-ipmitool -I lanplus -H '$NODE_IP' -U root -E chassis power reset
+ipmitool -I lanplus -H \$NODE_IP -U root -E chassis bootdev pxe
+ipmitool -I lanplus -H \$NODE_IP -U root -E chassis power reset
 
 __EOF__
 

@@ -1,0 +1,80 @@
+#!/bin/csh -f
+#
+# Script to change the public IP address of a Rocks frontend.
+# Edit the first 2 non-comment lines below before you run this.
+#
+# Written by Bart Brashers, following posts to the Rocks list by Simon, Luca,
+# and Stefan, starting at:
+#   http://marc.info/?l=npaci-rocks-discussion&m=138127171509151&w=2
+#
+# After this script runs and everything looks good, re-install your compute nodes
+# (don't forget about other Appliances too). This is so they get the changes to
+# /etc/hosts and /etc/yum.conf.  This usually involves something like:
+#
+#   cd /export/rocks/install
+#   rocks create distro
+#   rocks run host compute '/boot/kickstart/cluster-kickstart-pxe'
+#
+#######################################################################
+#
+# Set the new IP address of the public iface of your frontend, and the
+# new DNS server IPs (comma-separated list):
+
+set newip  = 10.11.12.X            # new IP address to use
+set newdns = 10.11.12.13,10.0.0.13 # new DNS server(s) sep by commas
+
+# Set these if they are not the usual (":r" removes the last octet):
+
+set newbc  = $newip:r.255 # new broadcast, usually ends in .255
+set newgw  = $newip:r.1   # new gateway,   usually ends in .1
+set newsub = $newip:r.0   # new subnet,    usually ends in .0
+
+# The rest of this script shouldn't need to be changed
+
+set oldip    = `rocks list attr | grep Kickstart_PublicAddress  | cut -d: -f2`
+set privip   = `rocks list attr | grep Kickstart_PrivateAddress | cut -d: -f2`
+set frontend = `hostname -s`
+set oldgw    = `grep GATEWAY /etc/sysconfig/network | cut -d= -f2`
+
+# Stop the network (will kill any remote shells, so run this from the console):
+
+service network stop
+# Change the IP and its friends:
+
+rocks set host interface ip $frontend iface=eth1 ip=$newip
+rocks set attr Kickstart_PublicAddress   value=$newip
+rocks set attr Kickstart_PublicBroadcast value=$newbc
+rocks set attr Kickstart_PublicGateway   value=$newgw
+rocks set attr Kickstart_PublicDNSServers value=$newdns
+
+# Change the network subnet named "public":
+
+rocks set attr Kickstart_PublicNetwork value=$newsub
+rocks set network subnet public subnet=$newsub
+
+# These 2 lines change the SOURCE = "H" entry in rocks list host route frontend
+# HOST           NETWORK         NETMASK         GATEWAY      SOURCE
+# frontend:      0.0.0.0         0.0.0.0         10.19.8.1    H
+
+rocks remove host route $frontend 0.0.0.0
+rocks add    host route $frontend 0.0.0.0 $newgw netmask=0.0.0.0
+
+# These 2 lines change the SOURCE = "G" entry in rocks list host route
+# HOST           NETWORK         NETMASK         GATEWAY      SOURCE
+# frontend:      10.19.8.34      255.255.255.255 10.1.1.1     G
+# compute-0-0:   10.19.8.34      255.255.255.255 10.1.1.1     G
+
+rocks remove route $oldip
+rocks add    route $newip $privip netmask=255.255.255.255
+
+# Done, sync everything and restart:
+
+sed -i s/$oldip/$newip/ /etc/hosts # or 'rocks sync config' will fail
+sed -i s/$oldgw/$newgw/ /etc/sysconfig/network
+sed -i s/$oldip/$newip/ /etc/sysconfig/static-routes
+sed -i s/$oldip/$newip/ /etc/yum.repos.d/rocks-local.repo
+
+rocks sync config
+rocks sync host network
+rocks sync host firewall localhost
+service network start
